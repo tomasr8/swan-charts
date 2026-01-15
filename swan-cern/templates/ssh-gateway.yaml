@@ -56,37 +56,36 @@ data:
 
     exec kubectl exec -it "$POD_NAME" -n "$NAMESPACE" -- /bin/bash
 
-  fetch-ldap-keys.sh: |
-    #!/bin/bash
-    export KRB5CCNAME=/tmp/krb5cc_test
+  # fetch-ldap-keys.sh: |
+  #   #!/bin/bash
+  #   export KRB5CCNAME=/tmp/krb5cc_test
 
-    USERNAME="$1"
-    [[ -z "$USERNAME" ]] && exit 1
-    ldapsearch -LLL -o ldif-wrap=no \
-        -H ldap://cerndc.cern.ch \
-        -Y GSSAPI \
-        -b "OU=Users,OU=Organic Units,DC=cern,DC=ch" \
-        "(sAMAccountName=${USERNAME})" \
-        altSecurityIdentities 2>/dev/null | \
-        grep "^altSecurityIdentities: SSH:" | \
-        sed 's/^altSecurityIdentities: SSH://'
+  #   USERNAME="$1"
+  #   [[ -z "$USERNAME" ]] && exit 1
+  #   ldapsearch -x -LLL -o ldif-wrap=no \
+  #       -H ldap://xldap.cern.ch \
+  #       -b "OU=Users,OU=Organic Units,DC=cern,DC=ch" \
+  #       "(sAMAccountName=${USERNAME})" \
+  #       altSecurityIdentities 2>/dev/null | \
+  #       grep "^altSecurityIdentities: SSH:" | \
+  #       sed 's/^altSecurityIdentities: SSH://'
 
-  sshd_config: |
-    Port 22
-    PermitRootLogin no
-    PasswordAuthentication no
-    PubkeyAuthentication yes
-    ChallengeResponseAuthentication no
-    UsePAM no
-    AuthorizedKeysCommand /etc/swan-ssh/fetch-ldap-keys.sh %u
-    AuthorizedKeysCommandUser nobody
-    ForceCommand /etc/swan-ssh/swan-ssh-gateway.sh
-    AllowUsers *
-    ClientAliveInterval 60
-    ClientAliveCountMax 3
-    X11Forwarding no
-    PrintMotd no
-    Subsystem sftp /usr/lib/openssh/sftp-server
+  # sshd_config: |
+  #   Port 22
+  #   PermitRootLogin no
+  #   PasswordAuthentication no
+  #   PubkeyAuthentication yes
+  #   ChallengeResponseAuthentication no
+  #   UsePAM no
+  #   AuthorizedKeysCommand /etc/swan-ssh/fetch-ldap-keys.sh %u
+  #   AuthorizedKeysCommandUser nobody
+  #   ForceCommand /etc/swan-ssh/swan-ssh-gateway.sh
+  #   AllowUsers *
+  #   ClientAliveInterval 60
+  #   ClientAliveCountMax 3
+  #   X11Forwarding no
+  #   PrintMotd no
+  #   Subsystem sftp /usr/lib/openssh/sftp-server
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -109,14 +108,14 @@ spec:
       containers:
         - name: sshd
           image: {{ .Values.sshGateway.image }}
-          command:
-            - /bin/bash
-            - -c
-            - |
-              cp /config/sshd_config /etc/ssh/sshd_config
-              cp /config/*.sh /etc/swan-ssh/
-              chmod +x /etc/swan-ssh/*.sh
-              exec /usr/sbin/sshd -D -e
+          # command:
+          #   - /bin/bash
+          #   - -c
+          #   - |
+          #     cp /config/sshd_config /etc/ssh/sshd_config
+          #     cp /config/*.sh /etc/swan-ssh/
+          #     chmod +x /etc/swan-ssh/*.sh
+          #     exec /usr/sbin/sshd -D -e
           ports:
             - containerPort: 22
               name: ssh
