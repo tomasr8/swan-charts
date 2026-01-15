@@ -65,6 +65,7 @@ data:
         -b "{{ .Values.sshGateway.ldap.baseDn }}" \
         "(sAMAccountName=${USERNAME})" \
         altSecurityIdentities 2>/dev/null | \
+        sed ':a;N;$!ba;s/\n //g' | \
         grep "^altSecurityIdentities: SSH:" | \
         sed 's/^altSecurityIdentities: SSH://'
 
