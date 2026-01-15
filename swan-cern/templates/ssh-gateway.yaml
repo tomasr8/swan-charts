@@ -1,0 +1,148 @@
+{{- if .Values.sshGateway.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: swan-ssh-gateway
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: swan-ssh-gateway
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: swan-ssh-gateway
+  namespace: {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: swan-ssh-gateway
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: swan-ssh-gateway
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swan-ssh-gateway-config
+  namespace: {{ .Release.Namespace }}
+data:
+  swan-ssh-gateway.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    USERNAME="$USER"
+    NAMESPACE="{{ .Release.Namespace }}"
+    POD_NAME="{{ .Values.sshGateway.podNamePrefix }}${USERNAME}"
+
+    if ! kubectl get pod "$POD_NAME" -n "$NAMESPACE" --no-headers 2>/dev/null | grep -q Running; then
+        echo ""
+        echo "No active SWAN session found for user: $USERNAME"
+        echo "Please start a session at: {{ .Values.sshGateway.swanUrl }}"
+        echo ""
+        exit 1
+    fi
+
+    exec kubectl exec -it "$POD_NAME" -n "$NAMESPACE" -- /bin/bash
+
+  fetch-ldap-keys.sh: |
+    #!/bin/bash
+    USERNAME="$1"
+    [[ -z "$USERNAME" ]] && exit 1
+    ldapsearch -x -LLL \
+        -H {{ .Values.sshGateway.ldap.host }} \
+        -b "{{ .Values.sshGateway.ldap.baseDn }}" \
+        "(sAMAccountName=${USERNAME})" \
+        altSecurityIdentities 2>/dev/null | \
+        grep "^altSecurityIdentities: SSH:" | \
+        sed 's/^altSecurityIdentities: SSH://'
+
+  sshd_config: |
+    Port 22
+    PermitRootLogin no
+    PasswordAuthentication no
+    PubkeyAuthentication yes
+    ChallengeResponseAuthentication no
+    UsePAM no
+    AuthorizedKeysCommand /etc/swan-ssh/fetch-ldap-keys.sh %u
+    AuthorizedKeysCommandUser nobody
+    ForceCommand /etc/swan-ssh/swan-ssh-gateway.sh
+    AllowUsers *
+    ClientAliveInterval 60
+    ClientAliveCountMax 3
+    X11Forwarding no
+    PrintMotd no
+    Subsystem sftp /usr/lib/openssh/sftp-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swan-ssh-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: swan-ssh-gateway
+spec:
+  replicas: {{ .Values.sshGateway.replicas }}
+  selector:
+    matchLabels:
+      app: swan-ssh-gateway
+  template:
+    metadata:
+      labels:
+        app: swan-ssh-gateway
+    spec:
+      serviceAccountName: swan-ssh-gateway
+      containers:
+        - name: sshd
+          image: {{ .Values.sshGateway.image }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              cp /config/sshd_config /etc/ssh/sshd_config
+              cp /config/*.sh /etc/swan-ssh/
+              chmod +x /etc/swan-ssh/*.sh
+              exec /usr/sbin/sshd -D -e
+          ports:
+            - containerPort: 22
+              name: ssh
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          resources:
+            {{- toYaml .Values.sshGateway.resources | nindent 12 }}
+          securityContext:
+            capabilities:
+              add: ["SYS_CHROOT"]
+      volumes:
+        - name: config
+          configMap:
+            name: swan-ssh-gateway-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: swan-ssh-gateway
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: swan-ssh-gateway
+  ports:
+    - port: 22
+      targetPort: 22
+      protocol: TCP
+      name: ssh
+{{- end }}

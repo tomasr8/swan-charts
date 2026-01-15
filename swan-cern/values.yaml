@@ -273,3 +273,20 @@ swanCern:
 
 hadoopTokenGenerator:
   image: gitlab-registry.cern.ch/swan/docker-images/hadoop-token-generator:v3.0.5
+
+sshGateway:
+  enabled: true
+  image: gitlab-registry.cern.ch/troun/ssh-gateway/ssh-gateway:latest
+  replicas: 1
+  podNamePrefix: "jupyter-"
+  swanUrl: "https://swan.cern.ch"
+  ldap:
+    host: "ldap://xldap.cern.ch"
+    baseDn: "OU=Users,OU=Organic Units,DC=cern,DC=ch"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "500m"
