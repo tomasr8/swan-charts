@@ -58,14 +58,16 @@ data:
 
   fetch-ldap-keys.sh: |
     #!/bin/bash
+    export KRB5CCNAME=/tmp/krb5cc_test
+
     USERNAME="$1"
     [[ -z "$USERNAME" ]] && exit 1
-    ldapsearch -x -LLL \
-        -H {{ .Values.sshGateway.ldap.host }} \
-        -b "{{ .Values.sshGateway.ldap.baseDn }}" \
+    ldapsearch -LLL -o ldif-wrap=no \
+        -H ldap://cerndc.cern.ch \
+        -Y GSSAPI \
+        -b "OU=Users,OU=Organic Units,DC=cern,DC=ch" \
         "(sAMAccountName=${USERNAME})" \
         altSecurityIdentities 2>/dev/null | \
-        sed ':a;N;$!ba;s/\n //g' | \
         grep "^altSecurityIdentities: SSH:" | \
         sed 's/^altSecurityIdentities: SSH://'
 
