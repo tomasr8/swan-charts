@@ -237,12 +237,9 @@ class SwanComputingPodHookHandler(SwanPodHookHandlerProd):
         """
 
         notebook_container = self._get_pod_container('notebook')
-        side_container = self._get_pod_container('side-container')
 
-         # pod volume to mount generated hadoop tokens and
-         # side-container volume mount with generated tokens
+        # Mount hadoop secret directly into notebook container
         self.pod.spec.volumes.append(
-            # V1Secret for tokens without adjusted permissions
             V1Volume(
                 name=hadoop_secret_name,
                 secret=V1SecretVolumeSource(
@@ -250,10 +247,10 @@ class SwanComputingPodHookHandler(SwanPodHookHandlerProd):
                 )
             )
         )
-        side_container.volume_mounts.append(
+        notebook_container.volume_mounts.append(
             V1VolumeMount(
                 name=hadoop_secret_name,
-                mount_path='/srv/side-container/hadoop'
+                mount_path='/srv/notebook/hadoop'
             )
         )
 
@@ -280,7 +277,7 @@ class SwanComputingPodHookHandler(SwanPodHookHandlerProd):
             notebook_container.env,
             V1EnvVar(
                 name='KUBECONFIG',
-                value='/srv/notebook/tokens/k8s-user.config'
+                value='/srv/notebook/hadoop/k8s-user.config'
             ),
         )
 

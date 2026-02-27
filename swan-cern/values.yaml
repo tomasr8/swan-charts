@@ -136,9 +136,6 @@ swan:
           mountPath: /usr/local/etc/jupyterhub/jupyterhub_config.d/3_swan_computing_config.py
           subPath: swan_computing_config.py
         - name: swan-secrets
-          mountPath: /srv/jupyterhub/private/eos.cred
-          subPath: eos.cred
-        - name: swan-secrets
           mountPath: /srv/jupyterhub/private/hadoop.cred
           subPath: hadoop.cred
         - name: swan-secrets
@@ -171,8 +168,6 @@ swan:
           secret:
             secretName: swan-cern
             items:
-            - key: eos.cred
-              path: eos.cred
             - key: hadoop.cred
               path: hadoop.cred
             - key: sparkk8s.cred
@@ -264,8 +259,6 @@ swan:
         # 4 hours
         timeout: 14400
         users: true
-        checkEosAuth: true
-        hooksDir: /srv/jupyterhub/culler
         audience: 'authorization-service-api'
         auth_url: https://auth.cern.ch/auth/realms/cern/api-access/token
         authz_api_url: https://authorization-service-api.web.cern.ch/api/v1.0/Identity
@@ -275,8 +268,6 @@ swan:
         configurationPath: /cvmfs/sft.cern.ch/lcg/etc/hadoop-confext
 swanCern:
   secrets:
-    eos:
-      cred:
     hadoop:
       cred:
     sparkk8s:
